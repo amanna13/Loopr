@@ -5,13 +5,44 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,21 +52,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
 import com.loopr.app.ui.presentation.modules.bindCameraUseCases
+import com.loopr.app.ui.theme.LooprCyan
 import com.loopr.app.ui.theme.SuccessColor
+import kotlinx.coroutines.launch
 import java.net.URLDecoder
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 data class AutopayData(
     val solanaAcc: String = "",
@@ -53,14 +87,22 @@ data class AutopayData(
 fun ScannerScreen(onQrCodeScanned: (String) -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
     rememberPermissionState(Manifest.permission.CAMERA)
 
     var autopayData by remember { mutableStateOf(AutopayData()) }
-    var isBottomSheetExpanded by remember { mutableStateOf(false) }
     var scannedQrData by remember { mutableStateOf("") }
+    var isBottomSheetExpanded by remember { mutableStateOf(false) }
 
-    val bottomSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
+    // Bottom sheet configuration - non-draggable
+    val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = SheetState(
+            skipPartiallyExpanded = true, // This prevents the partially expanded state
+            initialValue = SheetValue.Hidden, // Start with hidden/collapsed
+            density = density,
+            skipHiddenState = false
+        )
     )
 
     fun parseQrCode(qrCode: String) {
@@ -79,7 +121,6 @@ fun ScannerScreen(onQrCodeScanned: (String) -> Unit) {
                 val memo = params["memo"]
                 var frequency = ""
                 var planId = ""
-                var userId = ""
 
                 if (memo != null) {
                     try {
@@ -98,13 +139,6 @@ fun ScannerScreen(onQrCodeScanned: (String) -> Unit) {
                                 planId = memo.substring(planStart, planEnd)
                             }
                         }
-                        if (memo.contains("\"userId\"")) {
-                            val userStart = memo.indexOf("\"userId\":\"") + 10
-                            val userEnd = memo.indexOf("\"", userStart)
-                            if (userEnd > userStart) {
-                                userId = memo.substring(userStart, userEnd)
-                            }
-                        }
                     } catch (e: Exception) {
                         // Handle JSON parsing errors
                     }
@@ -116,11 +150,14 @@ fun ScannerScreen(onQrCodeScanned: (String) -> Unit) {
                     label = params["label"] ?: "",
                     message = params["message"] ?: "",
                     frequency = frequency,
-                    planId = planId,
-                    userId = userId
+                    planId = planId
                 )
 
+                // Expand the bottom sheet when valid QR is scanned
                 isBottomSheetExpanded = true
+                coroutineScope.launch {
+                    bottomSheetScaffoldState.bottomSheetState.expand()
+                }
                 scannedQrData = qrCode
             } catch (e: Exception) {
                 // Handle parsing errors
@@ -191,7 +228,7 @@ fun ScannerScreen(onQrCodeScanned: (String) -> Unit) {
             )
         }
 
-        // Bottom Sheet - Collapsed by default
+        // Collapsed Bottom Sheet (always visible at bottom)
         if (!isBottomSheetExpanded) {
             Box(
                 modifier = Modifier
@@ -199,12 +236,13 @@ fun ScannerScreen(onQrCodeScanned: (String) -> Unit) {
                     .fillMaxWidth()
                     .background(
                         MaterialTheme.colorScheme.surface,
-                        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                     )
                     .padding(24.dp)
             ) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "Scan to set Autopay",
@@ -222,16 +260,12 @@ fun ScannerScreen(onQrCodeScanned: (String) -> Unit) {
             }
         }
 
-        // Expanded Bottom Sheet Modal
+        // Expanded Bottom Sheet (full screen modal)
         if (isBottomSheetExpanded) {
-            ModalBottomSheet(
-                onDismissRequest = {
-                    isBottomSheetExpanded = false
-                    autopayData = AutopayData()
-                },
-                sheetState = bottomSheetState,
-                modifier = Modifier.fillMaxHeight(),
-                dragHandle = null
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
             ) {
                 AutopaySetupContent(
                     autopayData = autopayData,
@@ -239,11 +273,17 @@ fun ScannerScreen(onQrCodeScanned: (String) -> Unit) {
                     onDismiss = {
                         isBottomSheetExpanded = false
                         autopayData = AutopayData()
+                        coroutineScope.launch {
+                            bottomSheetScaffoldState.bottomSheetState.hide()
+                        }
                     },
                     onSetAutopay = {
                         // Handle autopay setup
                         isBottomSheetExpanded = false
                         autopayData = AutopayData()
+                        coroutineScope.launch {
+                            bottomSheetScaffoldState.bottomSheetState.hide()
+                        }
                     }
                 )
             }
@@ -306,93 +346,191 @@ fun AutopaySetupContent(
 
         // Horizontal divider
         HorizontalDivider(
-            modifier = Modifier.padding(bottom = 24.dp),
+            modifier = Modifier.padding(bottom = 32.dp),
             thickness = 1.dp,
             color = MaterialTheme.colorScheme.outline
         )
 
-        // Form fields
+        // Centered Amount Field with clean design
         Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Amount field
-            OutlinedTextField(
-                value = autopayData.amount,
-                onValueChange = {
+            Text(
+                text = "Amount",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            // Clean amount input field with proper cursor handling
+            var amountInput by remember { mutableStateOf("") }
+
+            LaunchedEffect(autopayData.amount) {
+                if (autopayData.amount.isNotEmpty() && amountInput.isEmpty()) {
+                    amountInput = autopayData.amount
+                }
+            }
+
+            BasicTextField(
+                value = amountInput,
+                onValueChange = { value ->
                     if (autopayData.amount.isEmpty()) {
-                        onDataChanged(autopayData.copy(amount = it))
+                        // Remove any non-numeric characters except decimal point
+                        val cleanValue = value.filter { it.isDigit() || it == '.' }
+                        amountInput = cleanValue
+                        onDataChanged(autopayData.copy(amount = cleanValue))
                     }
                 },
-                label = { Text("Amount") },
                 enabled = autopayData.amount.isEmpty(),
+                textStyle = MaterialTheme.typography.displaySmall.copy(
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    color = if (autopayData.amount.isEmpty())
+                        MaterialTheme.colorScheme.onSurface
+                    else
+                        LooprCyan
+                ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Label field
-            OutlinedTextField(
-                value = autopayData.label,
-                onValueChange = {
-                    if (autopayData.label.isEmpty()) {
-                        onDataChanged(autopayData.copy(label = it))
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) { innerTextField ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "SOL ",
+                            style = MaterialTheme.typography.displaySmall.copy(
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = if (amountInput.isEmpty())
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                else if (autopayData.amount.isEmpty())
+                                    MaterialTheme.colorScheme.onSurface
+                                else
+                                    LooprCyan
+                            )
+                        )
+                        if (amountInput.isEmpty() && autopayData.amount.isEmpty()) {
+                            Text(
+                                text = "0.00",
+                                style = MaterialTheme.typography.displaySmall.copy(
+                                    textAlign = TextAlign.Center,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            )
+                        } else {
+                            innerTextField()
+                        }
                     }
-                },
-                label = { Text("Label") },
-                enabled = autopayData.label.isEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Frequency field
-            OutlinedTextField(
-                value = autopayData.frequency,
-                onValueChange = {
-                    if (autopayData.frequency.isEmpty()) {
-                        onDataChanged(autopayData.copy(frequency = it))
-                    }
-                },
-                label = { Text("Frequency") },
-                enabled = autopayData.frequency.isEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Plan ID field
-            OutlinedTextField(
-                value = autopayData.planId,
-                onValueChange = {
-                    if (autopayData.planId.isEmpty()) {
-                        onDataChanged(autopayData.copy(planId = it))
-                    }
-                },
-                label = { Text("Plan ID") },
-                enabled = autopayData.planId.isEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // User ID field
-            OutlinedTextField(
-                value = autopayData.userId,
-                onValueChange = {
-                    if (autopayData.userId.isEmpty()) {
-                        onDataChanged(autopayData.copy(userId = it))
-                    }
-                },
-                label = { Text("User ID") },
-                enabled = autopayData.userId.isEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Today's date field (read-only)
-            OutlinedTextField(
-                value = autopayData.todaysDate,
-                onValueChange = { },
-                label = { Text("Date") },
-                enabled = false,
-                modifier = Modifier.fillMaxWidth()
-            )
+                }
+            }
         }
 
-        // Set Autopay button
+        // Stylized Details Card with gradient background similar to home screen
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(28.dp)),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.surface,
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f),
+                                LooprCyan.copy(alpha = 0.05f)
+                            )
+                        )
+                    )
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // Card Header with Loopr branding
+                Column {
+                    Text(
+                        text = "Subscription Details",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = "Review your autopay configuration",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp)
+                    )
+                }
+
+                // Modern input fields
+                ModernTextField(
+                    value = autopayData.label,
+                    onValueChange = {
+                        if (autopayData.label.isEmpty()) {
+                            onDataChanged(autopayData.copy(label = it))
+                        }
+                    },
+                    label = "Plan Name",
+                    enabled = autopayData.label.isEmpty()
+                )
+
+                ModernTextField(
+                    value = autopayData.frequency,
+                    onValueChange = {
+                        if (autopayData.frequency.isEmpty()) {
+                            onDataChanged(autopayData.copy(frequency = it))
+                        }
+                    },
+                    label = "Billing Frequency",
+                    enabled = autopayData.frequency.isEmpty()
+                )
+
+                ModernTextField(
+                    value = autopayData.planId,
+                    onValueChange = {
+                        if (autopayData.planId.isEmpty()) {
+                            onDataChanged(autopayData.copy(planId = it))
+                        }
+                    },
+                    label = "Plan ID",
+                    enabled = autopayData.planId.isEmpty()
+                )
+
+                ModernTextField(
+                    value = autopayData.todaysDate,
+                    onValueChange = { },
+                    label = "Start Date",
+                    enabled = false
+                )
+            }
+        }
+
+        // Enhanced Set Autopay button with Loopr styling
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -402,18 +540,87 @@ fun AutopaySetupContent(
             Button(
                 onClick = onSetAutopay,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = SuccessColor,
-                    contentColor = Color.White
+                    containerColor = LooprCyan,
+                    contentColor = Color.Black
                 ),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .height(56.dp)
+                    .widthIn(min = 160.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
                 Text(
                     text = "Set Autopay",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun ModernTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    enabled: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant
+                   else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                color = if (enabled) MaterialTheme.colorScheme.onSurface
+                       else MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            keyboardOptions = keyboardOptions,
+            modifier = Modifier.fillMaxWidth()
+        ) { innerTextField ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = if (enabled) Color.Transparent
+                               else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(vertical = 12.dp, horizontal = if (enabled) 0.dp else 12.dp)
+            ) {
+                if (value.isEmpty() && enabled) {
+                    Text(
+                        text = "Enter $label",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+                innerTextField()
+            }
+        }
+
+        // Bottom border for enabled fields
+        if (enabled) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(
+                        color = if (value.isNotEmpty()) SuccessColor.copy(alpha = 0.5f)
+                               else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    )
+            )
         }
     }
 }
