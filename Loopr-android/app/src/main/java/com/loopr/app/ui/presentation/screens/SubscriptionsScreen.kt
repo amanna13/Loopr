@@ -52,7 +52,7 @@ fun SubscriptionsScreen(modifier: Modifier = Modifier) {
         // Header section with colored background
         Box(
             modifier = Modifier
-                .background(Color(0xFFB4C4E7))
+                .background(Color(0xFF3700B3))
                 .fillMaxWidth()
                 .fillMaxHeight(0.30f)
         ) {
@@ -68,7 +68,7 @@ fun SubscriptionsScreen(modifier: Modifier = Modifier) {
                     "Subscriptions",
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = Color.White,
                     modifier = Modifier.padding(top = 24.dp)
                 )
 
