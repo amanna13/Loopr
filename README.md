@@ -139,8 +139,11 @@ Major Highlights of your project:
 
   <img src="https://github.com/user-attachments/assets/178a6749-4155-4728-b793-738d8928be83" width="170" style="margin-right: 20px;" />
   <img src="https://github.com/user-attachments/assets/8d73ced4-8aea-4b2a-8485-6283fde467ef" width="170" style="margin-right: 20px;" />
-  <img src="https://github.com/user-attachments/assets/b02093ee-b2d1-4ffa-8d42-3b1f84b697ed" width="170" style="margin-right: 20px;" />
-  <img src="(https://github.com/user-attachments/assets/6ac3bc41-e1ff-495c-8a9d-4af119cf6aa0" width="170" style="margin-right: 20px;" />
+  <img src="https://github.com/user-attachments/assets/79cd5b27-8790-4bd8-bb6e-88de5340ade9" width="170" style="margin-right: 20px;" />
+  <img src="https://github.com/user-attachments/assets/cef60f52-74e8-4dbf-ada9-737cf0cf7d06" width="170" style="margin-right: 20px;" />
+  <img src="https://github.com/user-attachments/assets/c545a9ed-ce98-4b1a-a631-9782f05a967c" width="170" style="margin-right: 20px;" />
+  <img src="https://github.com/user-attachments/assets/bffa3a10-3142-48b2-a9b3-df1549c44bdd" width="170" style="margin-right: 20px;" />
+
 
 </div>
 
