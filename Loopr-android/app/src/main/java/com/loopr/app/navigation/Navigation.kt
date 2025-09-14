@@ -75,7 +75,17 @@ fun LooprNavigation(
         }
 
         composable(route = LooprDestinations.QR_SCANNER) {
-            ScannerScreen(onQrCodeScanned = {})
+            ScannerScreen(
+                onQrCodeScanned = {},
+                onNavigateToHome = {
+                    navController.navigate(LooprDestinations.HOME) {
+                        popUpTo(LooprDestinations.QR_SCANNER) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
 
     }
